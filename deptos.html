@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Deptos">
+<title>Deptos CDMX en mapa</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--ink:#17181b;--mut:#62666e;--line:#e3e5e9;--card:#f6f7f9;--pin:#e4007c;--metro:#f07c00;--mb:#d5172b;--warn:#b45309;--ok:#0f7a43}
+@media(prefers-color-scheme:dark){:root{--bg:#121316;--ink:#eef0f3;--mut:#9aa0aa;--line:#2a2d33;--card:#1b1d21}}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 Archivo,system-ui,-apple-system,sans-serif}
+body{display:flex;flex-direction:column;height:100dvh;padding-top:env(safe-area-inset-top)}
+header{padding:10px 16px 0;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h1{font-size:22px;line-height:1.1;margin:0;font-weight:800}
+.count{font-size:13px;color:var(--mut);white-space:nowrap}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 16px;scrollbar-width:none;flex:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-height:38px;padding:0 13px;border-radius:19px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 14px Archivo,system-ui,sans-serif}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#map{flex:1 1 auto;min-height:240px;z-index:0}
+.leaflet-container{font:14px Archivo,system-ui,sans-serif;background:#e9e7e3}
+.pinbox{background:none;border:0}
+.pp{transform:translate(-50%,-100%);display:inline-block;background:var(--pin);color:#fff;font-weight:800;font-size:13px;padding:4px 8px;border-radius:12px;border:2px solid #fff;box-shadow:0 2px 6px #0004;white-space:nowrap;position:relative}
+.pp:after{content:"";position:absolute;left:50%;bottom:-7px;margin-left:-6px;border:6px solid transparent;border-top-color:var(--pin);border-bottom:0}
+.pp.w{background:var(--warn)}.pp.w:after{border-top-color:var(--warn)}
+.pp.on{background:var(--ink);transform:translate(-50%,-100%) scale(1.2);z-index:9}.pp.on:after{border-top-color:var(--ink)}
+.mapbtns{position:absolute;right:10px;bottom:10px;z-index:500;display:grid;gap:6px}
+.mb{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:800 18px Archivo,sans-serif;box-shadow:0 2px 8px #0003}
+.wrap{position:relative;flex:1 1 auto;display:flex}
+.sheet{flex:none;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);background:var(--bg)}
+.rail{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:12px 16px;scroll-padding-inline:16px;scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.card{flex:0 0 min(86vw,360px);scroll-snap-align:start;background:var(--card);border:2px solid transparent;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.card.on{border-color:var(--pin)}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.price{font-size:24px;font-weight:800;white-space:nowrap}
+.ppm{font-size:13px;color:var(--mut);white-space:nowrap}
+.addr{font-weight:600;line-height:1.25}
+.col{color:var(--mut);font-size:14px}
+.facts{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:13px;padding:2px 8px;border-radius:8px;background:var(--bg);border:1px solid var(--line);white-space:nowrap}
+.tag.good{color:var(--ok);border-color:currentColor}.tag.warn{color:var(--warn);border-color:currentColor}.tag.pink{color:var(--pin);border-color:currentColor}
+.transit{font-size:14px;display:grid;gap:1px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.note{font-size:14px;color:var(--mut);margin:0}
+details.note summary{cursor:pointer;color:var(--ink);font-weight:600}
+.btns{display:flex;gap:8px;margin-top:4px}
+.btn{flex:1 1 auto;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;font:600 15px Archivo,sans-serif;text-decoration:none;padding:0 10px;border:1px solid var(--line);color:var(--ink);background:var(--bg)}
+.btn.main{background:var(--pin);border-color:var(--pin);color:#fff}
+.fav{flex:0 0 44px;font-size:20px;padding:0}
+.chip:focus-visible,.btn:focus-visible,.mb:focus-visible{outline:3px solid var(--pin);outline-offset:2px}
+@media(min-width:900px){body{display:grid;grid-template-columns:1fr 400px;grid-template-rows:auto auto 1fr}header,.chips{grid-column:1/3}.wrap{grid-row:3}.sheet{grid-row:3;overflow-y:auto;border-top:0;border-left:1px solid var(--line)}.rail{flex-direction:column;overflow:visible}.card{flex:none}}
+</style>
+</head>
+<body>
+<header><h1>Deptos en renta</h1><span class="count" id="count"></span></header>
+<div class="chips" id="chips"></div>
+<div class="wrap"><div id="map"></div>
+  <div class="mapbtns"><button class="mb" id="loc" aria-label="Mi ubicación">◎</button><button class="mb" id="fit" aria-label="Ver todos">⤢</button></div>
+</div>
+<div class="sheet"><div class="rail" id="rail"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+{
+const D=[
+{id:'regina',addr:'Regina 70',col:'Centro Histórico',lat:19.4275317,lon:-99.1345188,p:10000,m2:138,rec:3,ba:2,pets:'yes',high:true,warn:false,url:'https://propiedades.com/inmuebles/departamento-en-renta-regina-70-centro-area-9-df-31588994',note:'Edificio histórico, techos de doble altura, terraza y estudio con tapanco. 3er piso sin elevador. El anuncio dice «SE ADMITEN MASCOTAS».'},
+{id:'qroo',addr:'Quintana Roo y Manzanillo (privada)',col:'Roma Sur',lat:19.4055529,lon:-99.1647126,p:13100,m2:55,rec:1,ba:1,pets:'?',high:false,warn:false,url:'https://propiedades.com/inmuebles/departamento-en-renta-roma-sur-df-31956488',note:'Planta baja en privada con plantas, sin amueblar. Piden fiador con inmueble en CDMX: pregunta si aceptan póliza. Clave EasyBroker EB-WV6418.',mine:true},
+{id:'cuau661',addr:'Av. Cuauhtémoc 661',col:'Narvarte Poniente',lat:19.3946241,lon:-99.1564202,p:12000,m2:70,rec:2,ba:2,pets:'tag',high:false,warn:false,url:'https://propiedades.com/inmuebles/departamento-en-renta-cuauhtemoc-661-narvarte-poniente-df-30843414',note:'2 recámaras y 2 baños, balcón, cocina abierta y roof garden. Está sobre la ruta del Metrobús L3.'},
+{id:'zempoala',addr:'Zempoala 275',col:'Narvarte Poniente',lat:19.3911162,lon:-99.1487352,p:12500,m2:86,rec:2,ba:1,pets:'tag',high:false,warn:false,url:'https://propiedades.com/inmuebles/departamento-en-renta-zempoala-275-narvarte-poniente-df-30092288',note:'2 recámaras amplias y luminosas, estacionamiento independiente, edificio de 8 años.'},
+{id:'sabino',addr:'Sabino 63',col:'Santa María la Ribera',lat:19.4445495,lon:-99.160502,p:12000,m2:62,rec:2,ba:2,pets:'tag',high:false,warn:false,url:'https://propiedades.com/inmuebles/departamento-en-renta-c-sabino-63-sta-maria-la-ribera-cuauhtemoc-06400-ciudad-de-mexico-cdmx-63-santa-maria-la-ribera-df-31975193',note:'Tiene terraza y lavandería. Dice «totalmente equipado»: pregunta si viene amueblado.'},
+{id:'vertiz',addr:'Dr. José María Vértiz 180',col:'Doctores',lat:19.4188734,lon:-99.1473467,p:10000,m2:null,rec:2,ba:2,pets:'tag',high:false,warn:false,url:'https://propiedades.com/inmuebles/departamento-en-renta-calle-dr-jose-maria-vertiz-180-doctores-df-31710978',note:'2 recámaras, 2 baños y elevador. El anuncio no indica los metros cuadrados.'},
+{id:'terres',approx:true,addr:'Dr. José Terres',col:'Doctores',lat:19.4164439,lon:-99.1479584,p:10000,m2:60,rec:2,ba:1,pets:'?',high:false,warn:false,url:'https://propiedades.com/inmuebles/departamento-en-renta-doctor-jose-terres-doctores-df-31668628',note:'2 recámaras, 60 m². El anuncio tiene muy poca información.'},
+{id:'mrio',addr:'Dr. Martínez del Río 103',col:'Doctores',lat:19.4174899,lon:-99.1488492,p:9000,m2:51,rec:2,ba:1,pets:'?',high:false,warn:false,url:'https://propiedades.com/inmuebles/departamento-en-renta-c-doctor-martinez-del-rio-103-doctores-cuauhtemoc-06720-ciudad-de-mexico-cdmx-103-doctores-df-31744882',note:'2 recámaras, 51 m².'},
+{id:'sanant',approx:true,addr:'Diagonal de San Antonio',col:'Narvarte Poniente',lat:19.3953005,lon:-99.1573479,p:11500,m2:45,rec:1,ba:1,pets:'tag',high:false,warn:false,url:'https://propiedades.com/inmuebles/departamento-en-renta-diagonal-de-san-antonio-narvarte-poniente-df-31935362',note:'1 recámara, 45 m², CCTV.'},
+{id:'yacatas',addr:'Yácatas 232',col:'Narvarte Poniente',lat:19.3926513,lon:-99.1552878,p:11000,m2:126,rec:3,ba:2,pets:'yes',high:false,warn:true,url:'https://propiedades.com/inmuebles/departamento-en-renta-calle-yacatas-232-narvarte-poniente-df-31954626',note:'Dice que «permite mascotas», con 3 recámaras y 2 estacionamientos. El precio está 55% abajo del promedio y la descripción es genérica: verifícalo antes de dar dinero.'},
+{id:'aguas',addr:'Aguascalientes 51',col:'Roma Sur',lat:19.4092791,lon:-99.1632267,p:10000,m2:95,rec:2,ba:2,pets:'?',high:false,warn:true,url:'https://propiedades.com/inmuebles/departamento-en-renta-aguascalientes-51-roma-sur-df-30843293',note:'Dos niveles con balcón. Muy barato para la Roma: verifícalo.'},
+{id:'roma85',addr:'Roma Sur (sin calle)',col:'Roma Sur',lat:19.4058,lon:-99.1585,p:8500,m2:86,rec:2,ba:2,pets:'tag',high:false,warn:true,approx:true,url:'https://propiedades.com/inmuebles/departamento-en-renta-roma-sur-06760-ciudad-de-mexico-cdmx-roma-sur-df-31744692',note:'El anuncio no da la calle, así que el alfiler está en el centro de la colonia. El precio es atípico.'},
+{id:'valla',addr:'Valladolid 51',col:'Roma Norte',lat:19.4202036,lon:-99.1684054,p:12000,m2:130,rec:2,ba:2,pets:'?',high:false,warn:true,url:'https://propiedades.com/inmuebles/departamento-en-renta-valladolid-51-roma-nte-cuauhtemoc-06700-ciudad-de-mexico-cdmx-51-roma-norte-df-31706947',note:'130 m² por $12,000 en la Roma Norte es muy improbable. No pagues nada sin visitarlo.'},
+{id:'sfco',addr:'San Francisco 226',col:'Del Valle Norte',lat:19.3962705,lon:-99.1698298,p:11000,m2:133,rec:2,ba:2,pets:'?',high:false,warn:true,url:'https://propiedades.com/inmuebles/departamento-en-renta-san-francisco-226-del-valle-norte-df-30739283',note:'Anuncio «exclusivo» con precio muy bajo para su tamaño. Verifícalo.'},
+{id:'gm',addr:'Gabriel Mancera 332',col:'Del Valle Norte',lat:19.3925936,lon:-99.1625502,p:11000,m2:118,rec:2,ba:2,pets:'?',high:false,warn:true,url:'https://propiedades.com/inmuebles/departamento-en-renta-gabriel-mancera-332-col-del-valle-nte-benito-juarez-03103-del-valle-nte-cdmx-332-del-valle-norte-df-31608520',note:'Anuncio «exclusivo» con precio muy bajo para su tamaño. Verifícalo.'}
+];
+const ST=[
+['m','Pino Suárez',19.42438,-99.13294],['m','Isabel la Católica',19.42647,-99.13782],['m','Salto del Agua',19.42719,-99.14207],['m','Balderas',19.4272,-99.1490],['m','Juárez',19.4334,-99.1474],['m','Hidalgo',19.4375,-99.1470],['m','Bellas Artes',19.4359,-99.1415],['m','Zócalo',19.4326,-99.1332],['m','Niños Héroes',19.41566,-99.15080],['m','Hospital General',19.41376,-99.15325],['m','Centro Médico',19.40656,-99.15519],['m','Etiopía',19.39597,-99.15606],['m','Eugenia',19.38617,-99.15720],['m','Doctores',19.42133,-99.14313],['m','Obrera',19.41301,-99.14393],['m','Lázaro Cárdenas',19.40702,-99.14434],['m','Chabacano',19.4085,-99.1355],['m','Insurgentes',19.42363,-99.16331],['m','Sevilla',19.4217,-99.1704],['m','Cuauhtémoc',19.4258,-99.1545],['m','Chilpancingo',19.40581,-99.16896],['m','San Cosme',19.44190,-99.16071],['m','Revolución',19.4393,-99.1546],['m','Buenavista',19.44647,-99.15283],['m','Normal',19.4448,-99.1670],
+['b','Álvaro Obregón',19.4180,-99.1630],['b','Sonora',19.41341,-99.16610],['b','Campeche',19.40952,-99.16735],['b','Chilpancingo',19.4062,-99.1690],['b','Nuevo León',19.3995,-99.1715],['b','Jardín Pushkin',19.42041,-99.15408],['b','Hospital General',19.4130,-99.1545],['b','Obrero Mundial',19.40239,-99.15062],['b','Etiopía',19.3960,-99.1555],['b','El Chopo',19.44335,-99.15441],['b','Plaza de la República',19.4360,-99.1540],['b','Isabel la Católica',19.4290,-99.1370]
+];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>'$'+n.toLocaleString('es-MX');
+const dist=(a,b,c,d)=>{const r=Math.PI/180,x=(d-b)*r*Math.cos((a+c)/2*r),y=(c-a)*r;return Math.sqrt(x*x+y*y)*6371e3};
+D.forEach(d=>{['m','b'].forEach(t=>{let best=null;ST.filter(s=>s[0]===t).forEach(s=>{const m=dist(d.lat,d.lon,s[2],s[3]);if(!best||m<best.m)best={n:s[1],m}});d[t]=best});d.ppm=d.m2?Math.round(d.p/d.m2):null});
+let favs=[];try{favs=JSON.parse(localStorage.getItem('deptos-favs')||'[]')}catch(e){}
+const saveFav=()=>{try{localStorage.setItem('deptos-favs',JSON.stringify(favs))}catch(e){}};
+const mins=m=>Math.max(1,Math.round(m*1.3/80));
+const F=[['all','Todas',()=>true],['big','80 m² o más',d=>d.m2>=80],['pets','Mascotas',d=>d.pets!=='?'],['near','Metro ≤10 min',d=>mins(d.m.m)<=10],['safe','Sin alerta',d=>!d.warn],['fav','★ Guardados',d=>favs.includes(d.id)]];
+const SORT=[['m2','Más amplios'],['near','Más cerca del Metro'],['p','Más baratos']];
+let filt='all',sort='m2',sel=null,showSt=true;
+const list=()=>{const f=F.find(x=>x[0]===filt)[2];const a=D.filter(f);a.sort(sort==='p'?(x,y)=>x.p-y.p:sort==='near'?(x,y)=>x.m.m-y.m.m:(x,y)=>(y.m2||0)-(x.m2||0));return a};
+const q=d=>encodeURIComponent(d.addr+', '+d.col+', Ciudad de México');
+const petTag=d=>d.pets==='yes'?'<span class="tag good">Acepta mascotas</span>':d.pets==='tag'?'<span class="tag">«Mascota»: confirmar</span>':'<span class="tag">Mascotas: sin dato</span>';
+const card=d=>`<article class="card${sel===d.id?' on':''}" id="c-${d.id}" data-id="${d.id}">
+<div class="top"><span class="price">${fmt(d.p)}</span><span class="ppm">${d.m2?d.m2+' m² · '+fmt(d.ppm)+'/m²':'m² sin dato'}</span></div>
+<div><div class="addr">${esc(d.addr)}</div><div class="col">${esc(d.col)}${d.approx?' · ubicación aproximada':''}</div></div>
+<div class="facts"><span class="tag">${d.rec} rec · ${d.ba} baño${d.ba>1?'s':''}</span>${petTag(d)}${d.high?'<span class="tag pink">Doble altura</span>':''}${d.warn?'<span class="tag warn">⚠ Precio atípico</span>':''}${d.mine?'<span class="tag pink">Te interesó</span>':''}</div>
+<div class="transit"><span><i class="dot" style="background:var(--metro)"></i>Metro ${esc(d.m.n)} · ~${mins(d.m.m)} min</span><span><i class="dot" style="background:var(--mb)"></i>Metrobús ${esc(d.b.n)} · ~${mins(d.b.m)} min</span></div>
+<details class="note"><summary>Notas</summary>${esc(d.note)}</details>
+<div class="btns"><a class="btn main" href="${esc(d.url)}" target="_blank" rel="noopener">Ver anuncio</a><a class="btn" href="https://maps.apple.com/?q=${q(d)}&ll=${d.lat},${d.lon}" target="_blank" rel="noopener">Cómo llegar</a><button class="btn fav" data-fav="${d.id}" aria-label="Guardar">${favs.includes(d.id)?'★':'☆'}</button></div>
+</article>`;
+const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([19.415,-99.155],14);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'© OpenStreetMap © CARTO'}).addTo(map);
+const stLayer=L.layerGroup().addTo(map);
+ST.forEach(s=>L.circleMarker([s[2],s[3]],{radius:s[0]==='m'?6:5,color:'#fff',weight:2,fillColor:s[0]==='m'?'#f07c00':'#d5172b',fillOpacity:1}).bindTooltip((s[0]==='m'?'Metro ':'Metrobús ')+s[1]).addTo(stLayer));
+const pinLayer=L.layerGroup().addTo(map);const mk={};
+const icon=d=>L.divIcon({className:'pinbox',html:`<span class="pp${d.warn?' w':''}${sel===d.id?' on':''}">${Math.round(d.p/100)/10}k${d.m2?' · '+d.m2+'m²':''}</span>`,iconSize:[0,0]});
+const drawPins=()=>{pinLayer.clearLayers();list().forEach(d=>{mk[d.id]=L.marker([d.lat,d.lon],{icon:icon(d),zIndexOffset:sel===d.id?1000:0}).on('click',()=>pick(d.id,true,false)).addTo(pinLayer)})};
+const chips=document.getElementById('chips'),rail=document.getElementById('rail'),count=document.getElementById('count');
+const drawChips=()=>{chips.innerHTML=F.map(f=>`<button class="chip" data-f="${f[0]}" aria-pressed="${filt===f[0]}">${esc(f[1])}</button>`).join('')+SORT.map(s=>`<button class="chip" data-s="${s[0]}" aria-pressed="${sort===s[0]}">↕ ${esc(s[1])}</button>`).join('')+`<button class="chip" data-st="1" aria-pressed="${showSt}">Estaciones</button>`};
+let io=null;
+const render=()=>{drawChips();const a=list();count.textContent=`${a.length} de ${D.length}`;if(a.length&&!a.some(d=>d.id===sel))sel=a[0].id;rail.innerHTML=a.length?a.map(card).join(''):'<p class="note">Ningún departamento cumple este filtro.</p>';drawPins();if(io){io.disconnect();rail.querySelectorAll('.card').forEach(c=>io.observe(c))}};
+const pick=(id,scroll,pan)=>{sel=id;document.querySelectorAll('.card').forEach(c=>c.classList.toggle('on',c.dataset.id===id));drawPins();const d=D.find(x=>x.id===id);if(pan)map.panTo([d.lat,d.lon]);if(scroll){const c=document.getElementById('c-'+id);if(c)c.scrollIntoView({behavior:'smooth',block:'nearest',inline:'start'})}};
+const fitAll=()=>{const a=list();if(a.length)map.fitBounds(L.latLngBounds(a.map(d=>[d.lat,d.lon])),{padding:[40,40]})};
+chips.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.f)filt=b.dataset.f;if(b.dataset.s)sort=b.dataset.s;if(b.dataset.st){showSt=!showSt;showSt?stLayer.addTo(map):map.removeLayer(stLayer)}render();if(b.dataset.f)fitAll()});
+rail.addEventListener('click',e=>{const f=e.target.closest('[data-fav]');if(f){const id=f.dataset.fav;favs=favs.includes(id)?favs.filter(x=>x!==id):[...favs,id];saveFav();f.textContent=favs.includes(id)?'★':'☆';return}const c=e.target.closest('.card');if(c&&!e.target.closest('a,summary'))pick(c.dataset.id,false,true)});
+try{io=new IntersectionObserver(es=>{if(innerWidth>=900)return;es.forEach(en=>{if(en.isIntersecting&&en.intersectionRatio>.7&&sel!==en.target.dataset.id)pick(en.target.dataset.id,false,true)})},{root:rail,threshold:[.7]})}catch(e){}
+document.getElementById('fit').onclick=fitAll;
+let me=null;document.getElementById('loc').onclick=()=>{if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(p=>{const ll=[p.coords.latitude,p.coords.longitude];if(me)map.removeLayer(me);me=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#1a73e8',fillOpacity:1}).addTo(map);map.setView(ll,15)},()=>{},{enableHighAccuracy:true,timeout:8000})};
+sel=list()[0].id;render();fitAll();
+}
+</script>
+</body>
+</html>
