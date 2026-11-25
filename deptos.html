@@ -24,7 +24,7 @@ h1{font-size:22px;line-height:1.1;margin:0;font-weight:800}
 #map{flex:1 1 auto;min-height:240px;z-index:0}
 .leaflet-container{font:14px Archivo,system-ui,sans-serif;background:#e9e7e3}
 .pinbox{background:none;border:0}
-.pp{transform:translate(-50%,-100%);display:inline-block;background:var(--pin);color:#fff;font-weight:800;font-size:13px;padding:4px 8px;border-radius:12px;border:2px solid #fff;box-shadow:0 2px 6px #0004;white-space:nowrap;position:relative}
+.pp{transform:translate(-50%,-100%);display:inline-block;background:var(--pin);color:#fff;font-weight:800;font-size:12px;padding:3px 7px;border-radius:12px;border:2px solid #fff;box-shadow:0 2px 6px #0004;white-space:nowrap;position:relative}
 .pp:after{content:"";position:absolute;left:50%;bottom:-7px;margin-left:-6px;border:6px solid transparent;border-top-color:var(--pin);border-bottom:0}
 .pp.w{background:var(--warn)}.pp.w:after{border-top-color:var(--warn)}
 .pp.on{background:var(--ink);transform:translate(-50%,-100%) scale(1.2);z-index:9}.pp.on:after{border-top-color:var(--ink)}
@@ -109,11 +109,13 @@ const card=d=>`<article class="card${sel===d.id?' on':''}" id="c-${d.id}" data-i
 <div class="btns"><a class="btn main" href="${esc(d.url)}" target="_blank" rel="noopener">Ver anuncio</a><a class="btn" href="https://maps.apple.com/?q=${q(d)}&ll=${d.lat},${d.lon}" target="_blank" rel="noopener">Cómo llegar</a><button class="btn fav" data-fav="${d.id}" aria-label="Guardar">${favs.includes(d.id)?'★':'☆'}</button></div>
 </article>`;
 const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([19.415,-99.155],14);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'© OpenStreetMap © CARTO'}).addTo(map);
+const osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
+const esri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'© Esri, © OpenStreetMap'});
+let errs=0;osm.on('tileerror',()=>{if(++errs===4){map.removeLayer(osm);esri.addTo(map)}});osm.addTo(map);
 const stLayer=L.layerGroup().addTo(map);
 ST.forEach(s=>L.circleMarker([s[2],s[3]],{radius:s[0]==='m'?6:5,color:'#fff',weight:2,fillColor:s[0]==='m'?'#f07c00':'#d5172b',fillOpacity:1}).bindTooltip((s[0]==='m'?'Metro ':'Metrobús ')+s[1]).addTo(stLayer));
 const pinLayer=L.layerGroup().addTo(map);const mk={};
-const icon=d=>L.divIcon({className:'pinbox',html:`<span class="pp${d.warn?' w':''}${sel===d.id?' on':''}">${Math.round(d.p/100)/10}k${d.m2?' · '+d.m2+'m²':''}</span>`,iconSize:[0,0]});
+const icon=d=>{const full=sel===d.id||map.getZoom()>=16;return L.divIcon({className:'pinbox',html:`<span class="pp${d.warn?' w':''}${sel===d.id?' on':''}">${Math.round(d.p/100)/10}k${full&&d.m2?' · '+d.m2+'m²':''}</span>`,iconSize:[0,0]})};
 const drawPins=()=>{pinLayer.clearLayers();list().forEach(d=>{mk[d.id]=L.marker([d.lat,d.lon],{icon:icon(d),zIndexOffset:sel===d.id?1000:0}).on('click',()=>pick(d.id,true,false)).addTo(pinLayer)})};
 const chips=document.getElementById('chips'),rail=document.getElementById('rail'),count=document.getElementById('count');
 const drawChips=()=>{chips.innerHTML=F.map(f=>`<button class="chip" data-f="${f[0]}" aria-pressed="${filt===f[0]}">${esc(f[1])}</button>`).join('')+SORT.map(s=>`<button class="chip" data-s="${s[0]}" aria-pressed="${sort===s[0]}">↕ ${esc(s[1])}</button>`).join('')+`<button class="chip" data-st="1" aria-pressed="${showSt}">Estaciones</button>`};
@@ -126,7 +128,7 @@ rail.addEventListener('click',e=>{const f=e.target.closest('[data-fav]');if(f){c
 try{io=new IntersectionObserver(es=>{if(innerWidth>=900)return;es.forEach(en=>{if(en.isIntersecting&&en.intersectionRatio>.7&&sel!==en.target.dataset.id)pick(en.target.dataset.id,false,true)})},{root:rail,threshold:[.7]})}catch(e){}
 document.getElementById('fit').onclick=fitAll;
 let me=null;document.getElementById('loc').onclick=()=>{if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(p=>{const ll=[p.coords.latitude,p.coords.longitude];if(me)map.removeLayer(me);me=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#1a73e8',fillOpacity:1}).addTo(map);map.setView(ll,15)},()=>{},{enableHighAccuracy:true,timeout:8000})};
-sel=list()[0].id;render();fitAll();
+map.on('zoomend',drawPins);sel=list()[0].id;render();setTimeout(()=>{map.invalidateSize();fitAll()},200);
 }
 </script>
 </body>
